@@ -8,9 +8,9 @@ import (
 )
 
 type obra struct {
-	Titulo string
 	Ano    string
-	Mes    string
+	Mes    *string
+	Titulo string
 	Link   string
 }
 type camarada struct {
@@ -21,9 +21,11 @@ type camarada struct {
 }
 
 func main() {
+
+	obras := []obra{}
 	// Instantiate default collector
 	c := colly.NewCollector(
-		// Visit only domains: hackerspaces.org, wiki.hackerspaces.org
+		// Visit only this domain
 		colly.AllowedDomains("www.marxists.org"),
 	)
 
@@ -33,32 +35,47 @@ func main() {
 	})
 	c.OnHTML("tbody", func(e *colly.HTMLElement) {
 		temp := obra{}
-
+		numb := 0 // só pra numerar a lista de obras na tela
 		e.ForEach("tr", func(i int, e *colly.HTMLElement) {
 			// handles data da obra separando Ano e Mês
 			dataObra := e.ChildText("td:nth-of-type(1)")
-			ano, mes, temMes := strings.Cut(dataObra, " - ")
+			titObra := e.ChildText("td:nth-of-type(2)")
+			linkObra := e.ChildAttr("a", "href")
+
+			ano, mes, temMes := strings.Cut(dataObra, " - ") // Separa Ano do Mês
 			temp.Ano = ano
+			temp.Titulo = titObra
+			temp.Link = linkObra
 
 			// Verifica validade do conteúdo
 			pattern := `^[0-9]{4}` // Apenas conteúdos que possuem a estrutura Ano - Titulo - Link são coletadas
 			isValido := regexp.MustCompile(pattern)
 
-			if isValido.MatchString(ano) {
+			if isValido.MatchString(ano) { //valida conteudo
+				numb++
+
 				if temMes {
-					temp.Mes = mes
+					temp.Mes = &mes
 				} else {
-					temp.Mes = "Indefinido"
+					temp.Mes = nil
 				}
-				fmt.Println("Ano :", temp.Ano, "Mês :", temp.Mes)
+				temp.Titulo = titObra
+				temp.Link = linkObra
+
+				obras = append(obras, temp)
+
+				fmt.Printf("> %d ----------------------------\n", numb)
+				if temp.Mes != nil { // Verifica se NIL apenas para printar
+					fmt.Printf("Ano: %s - %s \n", temp.Ano, *temp.Mes)
+				} else {
+					fmt.Println("Ano:", temp.Ano)
+				}
+				fmt.Printf("Título: %s \n", temp.Titulo)
+				fmt.Printf("Link: %s \n", temp.Link)
+				fmt.Printf("\n")
 			}
-			//titulo := e.ChildText("td:nth-of-type(2)")
-			//link := e.ChildAttr("td", "a")
-
 		})
-
-		fmt.Println(temp.Titulo)
-		fmt.Println(temp.Link)
+		fmt.Println(len(obras))
 	})
 
 	// Before making a request print "Visiting ..."
